@@ -23,6 +23,7 @@ function displayProductDetails(product) {
     document.getElementById("description").innerText = product.description;
     document.querySelector(".item__img").innerHTML = `<img src="${product.imageUrl}" alt="${product.altTxt}">`;
 
+    // forEach crea un selector option para elegir los colores de cada producto
     const colorsSelect = document.getElementById("colors");
     product.colors.forEach(color => {
         let option = document.createElement("option");
@@ -30,6 +31,13 @@ function displayProductDetails(product) {
         option.innerText = color;
         colorsSelect.appendChild(option);
     });
+
+    // En lugar de crearlo utilizando el html, he utilizado el método forEach para crear el elemento option
+    // de está manera las diferentes funcionalidades están en una sección diferentes y es más
+    // fácil de encontrar y modificar en un futuro
+
+    // ce script JavaScript crée des éléments option pour chaque couleur 
+    // dans la liste des couleurs d'un produit, puis les ajoute à un élément de sélection dans le document HTML.
 
     // Establecer la cantidad inicial en 1
     const quantityInput = document.getElementById("quantity");
@@ -44,10 +52,11 @@ function displayProductDetails(product) {
     });
 
 // Función para actualizar el precio total
+// Utilizar parseInt para convertir el price en number, sino no funciona
 function updateTotalPrice(price) {
     const quantity = parseInt(document.getElementById('quantity').value);
     const totalPriceElement = document.getElementById('price');
-    totalPriceElement.innerText = (price * quantity).toFixed(2);
+    totalPriceElement.innerText = (price * quantity);
 }
 
 }
@@ -60,7 +69,6 @@ if (productId) {
 }
 
 // funcion para guardar el producto en el carrito una vez se hace clic en el boton.
-
 document.getElementById("addToCart").addEventListener("click", function() {
     const color = document.getElementById("colors").value;
     const quantity = parseInt(document.getElementById("quantity").value);
@@ -80,11 +88,11 @@ document.getElementById("addToCart").addEventListener("click", function() {
     let cart = JSON.parse(localStorage.getItem("cart")) || [];
 
     // Verifica si el producto ya está en el carrito
-    const existingProductIndex = cart.findIndex(item => item.id === productId && item.color === color);
+    const productAdded = cart.find(item => item.id === productId && item.color === color);
     
-    if (existingProductIndex >= 0) {
+    if (productAdded >= 0) {
         // Si el producto ya está en el carrito, actualizamos la cantidad
-        cart[existingProductIndex].quantity += quantity;
+        cart[productAdded].quantity += quantity;
     } else {
         // Si el producto no está en el carrito, lo agregamos
         cart.push(productData);
@@ -94,4 +102,23 @@ document.getElementById("addToCart").addEventListener("click", function() {
     localStorage.setItem("cart", JSON.stringify(cart));
 
     alert("Produit ajouté au panier");
+
+    updateCartCount();
 });
+
+//::::::::PRUEBA:::::::::::::::::::::::::::::
+// Función para actualizar el número de productos en el menú
+function updateCartCount() {
+    const cart = JSON.parse(localStorage.getItem("cart")) || [];
+    const cartCount = cart.reduce((total, product) => total + product.quantity, 0);
+    const cartMenuElement = document.getElementById("cartMenu");
+
+    if (cartCount > 0) {
+        cartMenuElement.innerHTML = `Panier (${cartCount})`;
+    } else {
+        cartMenuElement.innerHTML = `Panier`;
+    }
+}
+
+// Llamar a la función para actualizar el número de productos al cargar la página
+document.addEventListener("DOMContentLoaded", updateCartCount);

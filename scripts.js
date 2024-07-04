@@ -11,7 +11,6 @@ function fetchItems() {
         .then(response => response.json())
         // Procesa los datos recibidos
         .then(items => {
-            console.log(items); // Verifica que se recibieron los datos correctamente
 
             // Obtiene el contenedor donde se agregarán los elementos
             let itemsContainer = document.getElementById("items");
