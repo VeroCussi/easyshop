@@ -4,65 +4,76 @@ const cartItemsContainer = document.getElementById("cart__items");
 const totalQuantityElement = document.getElementById("totalQuantity");
 const totalPriceElement = document.getElementById("totalPrice");
 
+let totalQuantity = 0;
+let totalPrice = 0;
+
 // Función para recuperar los datos del carrito de localStorage
 function loadCart() {
 
-    let totalQuantity = 0;
-    let totalPrice = 0;
-
     cart.forEach(item => {
-        const url = `http://localhost:3000/api/products/${item.id}`;   
+        const url = `http://localhost:3000/api/products/${item.id}`;
         // Obtener los detalles del producto desde la API
         fetch(url)
             .then(response => response.json())
             .then(product => {
-                const article = document.createElement("article");
-                article.classList.add("cart__item");
-                article.setAttribute("data-id", item.id);
-                article.setAttribute("data-color", item.color);
-                article.innerHTML = `
-                    <div class="cart__item__img">
-                        <img src="${product.imageUrl}" alt="${product.altTxt}">
-                    </div>
-                    <div class="cart__item__content">
-                        <div class="cart__item__content__description">
-                            <h2>${product.name}</h2>
-                            <p>${item.color}</p>
-                            <p>${product.price} €</p>
+                // Verificar si el artículo ya existe en el carrito
+                const existingArticle = cartItemsContainer.querySelector(`.cart__item[data-id="${item.id}"][data-color="${item.color}"]`);
+                if (existingArticle) {
+                    // Actualizar la cantidad y el precio si el artículo ya existe
+                    const quantityElement = existingArticle.querySelector(".itemQuantity");
+                    const priceElement = existingArticle.querySelector(".cart__item__content__description p:last-child");
+                    const newQuantity = parseInt(quantityElement.value) + parseInt(item.quantity);
+                    quantityElement.value = newQuantity;
+                    priceElement.textContent = `${newQuantity * product.price} €`;
+                } else {
+                    // Crear un nuevo artículo si no existe
+                    const article = document.createElement("article");
+                    article.classList.add("cart__item");
+                    article.setAttribute("data-id", item.id);
+                    article.setAttribute("data-color", item.color);
+                    article.innerHTML = `
+                        <div class="cart__item__img">
+                            <img src="${product.imageUrl}" alt="${product.altTxt}">
                         </div>
-                        <div class="cart__item__content__settings">
-                            <div class="cart__item__content__settings__quantity">
-                                <p id="subtotalPrice">Qté : </p>
-                                <input type="number" class="itemQuantity" name="itemQuantity" min="1" max="100" value="${item.quantity}">
+                        <div class="cart__item__content">
+                            <div class="cart__item__content__description">
+                                <h2>${product.name}</h2>
+                                <p>${item.color}</p>
+                                <p>${item.quantity * product.price} €</p>
                             </div>
-                            <div class="cart__item__content__settings__delete">
-                                <p class="deleteItem">Supprimer</p>
+                            <div class="cart__item__content__settings">
+                                <div class="cart__item__content__settings__quantity">
+                                    <p>Qté : </p>
+                                    <input type="number" class="itemQuantity" name="itemQuantity" min="1" max="100" value="${item.quantity}">
+                                </div>
+                                <div class="cart__item__content__settings__delete">
+                                    <p class="deleteItem">Supprimer</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `;
-
-                cartItemsContainer.appendChild(article);
-
+                    `;
+                    cartItemsContainer.appendChild(article);
+    
+                    // Agregar eventos para la actualización de la cantidad y la eliminación del producto
+                    article.querySelector(".itemQuantity").addEventListener("change", function(event) {
+                        updateQuantity(item.id, item.color, event.target.value);
+                    });
+                    article.querySelector(".deleteItem").addEventListener("click", function() {
+                        deleteItem(item.id, item.color);
+                    });
+                }
+    
                 // Actualizar la cantidad y el precio total
                 totalQuantity += parseInt(item.quantity);
                 totalPrice += product.price * item.quantity;
-                console.log(subtotalPrice);
-
+    
                 // Actualizar los elementos del DOM para la cantidad total y el precio total
                 totalQuantityElement.innerText = totalQuantity;
                 totalPriceElement.innerText = totalPrice;
-
-                // Agregar eventos para la actualización de la cantidad y la eliminación del producto
-                article.querySelector(".itemQuantity").addEventListener("change", function(event) {
-                    updateQuantity(item.id, item.color, event.target.value);
-                });
-                article.querySelector(".deleteItem").addEventListener("click", function() {
-                    deleteItem(item.id, item.color);
-                });
             })
             .catch(error => console.error("Error: ", error));
     });
+    
 }
 
 // Función para actualizar la cantidad de un producto en el carrito
@@ -73,9 +84,20 @@ function updateQuantity(id, color, newQuantity) {
     if (productIndex >= 0) {
         cart[productIndex].quantity = parseInt(newQuantity);
         localStorage.setItem("cart", JSON.stringify(cart));
-        location.reload(); // Recargar la página para reflejar los cambios
-        // Actualizar la vista del carrito
-        //refreshCart(); crear function
+        
+        // Actualizar el DOM dinámicamente
+        const article = document.querySelector(`.cart__item[data-id="${id}"][data-color="${color}"]`);
+        const url = `http://localhost:3000/api/products/${id}`;
+        fetch(url)
+            .then(response => response.json())
+            .then(product => {
+                const priceElement = article.querySelector(".cart__item__content__description p:last-child");
+                priceElement.textContent = `${product.price * newQuantity} €`;
+
+                // Actualizar la cantidad total y el precio total
+                updateTotal();
+            })
+            .catch(error => console.error("Error: ", error));
     }
 }
 
@@ -84,7 +106,33 @@ function deleteItem(id, color) {
     let cart = JSON.parse(localStorage.getItem("cart")) || [];
     cart = cart.filter(item => item.id !== id || item.color !== color);
     localStorage.setItem("cart", JSON.stringify(cart));
-    location.reload(); // Recargar la página para reflejar los cambios
+
+    // Remover el artículo del DOM
+    const article = document.querySelector(`.cart__item[data-id="${id}"][data-color="${color}"]`);
+    if (article) {
+        cartItemsContainer.removeChild(article);
+    }
+    
+    // Actualizar la cantidad total y el precio total
+    updateTotal();
+}
+
+// Función para actualizar dinámicamente
+async function updateTotal() {
+    let totalQuantity = 0;
+    let totalPrice = 0;
+    let cart = JSON.parse(localStorage.getItem("cart")) || [];
+
+    for (const item of cart) {
+        const url = `http://localhost:3000/api/products/${item.id}`;
+        const response = await fetch(url);
+        const product = await response.json();
+        totalQuantity += parseInt(item.quantity);
+        totalPrice += product.price * item.quantity;
+    }
+
+    totalQuantityElement.innerText = totalQuantity;
+    totalPriceElement.innerText = totalPrice;
 }
 
 // Llamar a la función para cargar los datos del carrito al cargar la página
